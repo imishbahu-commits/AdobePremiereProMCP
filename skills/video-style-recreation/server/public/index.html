@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PremierPro MCP — Render Gallery & Reference Uploader</title>
+<style>
+  :root {
+    --bg:#0e1116; --panel:#171c24; --panel2:#1e2530; --line:#2a3342;
+    --text:#e8edf4; --dim:#8b96a7; --accent:#9999ff; --accent2:#62d3a4; --warn:#ffb26b;
+  }
+  * { box-sizing:border-box; margin:0; }
+  body { background:var(--bg); color:var(--text); font:15px/1.5 system-ui,Segoe UI,Roboto,sans-serif; }
+  header { padding:28px 32px 18px; border-bottom:1px solid var(--line); display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; }
+  header h1 { font-size:22px; letter-spacing:.2px; }
+  header h1 b { color:var(--accent); }
+  header .sub { color:var(--dim); font-size:13px; }
+  .pill { font-size:11px; background:var(--panel2); border:1px solid var(--line); color:var(--accent2);
+          border-radius:999px; padding:3px 10px; }
+  main { max-width:1080px; margin:26px auto 60px; padding:0 24px; display:grid; gap:26px; }
+
+  /* ── uploader ─────────────────────────────── */
+  #drop { border:2px dashed var(--line); border-radius:14px; padding:34px 24px; text-align:center;
+          cursor:pointer; transition:border-color .15s, background .15s; background:var(--panel); }
+  #drop:hover, #drop.over { border-color:var(--accent); background:var(--panel2); }
+  #drop .big { font-size:17px; font-weight:650; }
+  #drop .small { color:var(--dim); font-size:12.5px; margin-top:6px; }
+  #drop .speed { color:var(--accent2); font-size:12px; margin-top:10px; }
+  #jobs { display:grid; gap:12px; }
+  .job { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
+  .job .top { display:flex; justify-content:space-between; gap:12px; font-size:13px; }
+  .job .top .nm { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .job .top .st { color:var(--dim); white-space:nowrap; }
+  .job .bar { height:8px; background:#0a0d12; border:1px solid var(--line); border-radius:99px; overflow:hidden; margin-top:10px; }
+  .job .bar i { display:block; height:100%; width:0; background:linear-gradient(90deg,var(--accent),var(--accent2)); transition:width .2s; }
+  .job .nums { display:flex; gap:14px; color:var(--dim); font-size:12px; margin-top:8px; flex-wrap:wrap; }
+  .job.done .st { color:var(--accent2); }
+  .job.err .st { color:var(--warn); }
+
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  .card video { width:100%; display:block; background:#000; aspect-ratio:16/9; }
+  .meta { padding:16px 18px; display:grid; gap:8px; }
+  .meta .title { font-weight:650; font-size:16px; display:flex; gap:10px; align-items:center; }
+  .tag { font-size:10px; text-transform:uppercase; letter-spacing:.4px; background:var(--panel2);
+         border:1px solid var(--line); color:var(--accent2); border-radius:6px; padding:2px 8px; }
+  .meta .row { display:flex; gap:16px; flex-wrap:wrap; color:var(--dim); font-size:12.5px; }
+  .meta .row span b { color:var(--text); font-weight:600; }
+  .links { display:flex; gap:10px; flex-wrap:wrap; padding-top:2px; }
+  .links a { font-size:12.5px; color:var(--accent); text-decoration:none; border:1px solid var(--line);
+             background:var(--panel2); padding:5px 12px; border-radius:8px; }
+  .links a:hover { border-color:var(--accent); }
+  .empty { color:var(--dim); text-align:center; padding:60px 0; border:1px dashed var(--line); border-radius:14px; }
+  footer { color:var(--dim); font-size:12px; text-align:center; padding:24px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>PremierPro MCP <b>· Render Gallery</b></h1>
+  <span class="pill">live preview</span>
+  <span class="pill">high-speed uploader</span>
+  <span class="sub" id="rootline">scanning outputs/ …</span>
+</header>
+
+<main>
+  <div id="drop">
+    <div class="big">⬆ Drop your <b>reference video</b> here (or click to browse)</div>
+    <div class="small">mp4 / mov / webm / mkv — lands straight in the sandbox at <code>outputs/uploads/</code></div>
+    <div class="speed">⚡ parallel 8 MB chunks · raw byte streams · no multipart overhead</div>
+    <input id="file" type="file" accept="video/*,.mkv,.mov" multiple hidden />
+  </div>
+  <div id="jobs"></div>
+
+  <div id="list"></div>
+</main>
+<footer>Uploads land in the sandbox for style analysis · new renders appear here automatically.</footer>
+
+<script>
+const fmtBytes = n => n > 1e9 ? (n/1e9).toFixed(2)+" GB" : n > 1e6 ? (n/1e6).toFixed(1)+" MB" : (n/1e3).toFixed(0)+" KB";
+const fmtDur = s => isFinite(s) ? `${Math.floor(s/60)}:${String(Math.round(s%60)).padStart(2,"0")}` : "–";
+const fmtSpeed = bps => fmtBytes(bps) + "/s";
+
+/* ────────── gallery ────────── */
+async function load() {
+  const list = document.getElementById("list");
+  try {
+    const data = await (await fetch("/api/videos")).json();
+    document.getElementById("rootline").textContent =
+      `serving ${data.count} video${data.count === 1 ? "" : "s"} from ${data.root}`;
+    if (!data.videos.length) {
+      list.innerHTML = `<div class="empty">No videos yet. Upload a reference or ask for a new render.</div>`;
+      return;
+    }
+    list.innerHTML = "";
+    for (const v of data.videos) {
+      const card = document.createElement("section");
+      card.className = "card";
+      card.innerHTML = `
+        <video controls preload="metadata" playsinline src="${v.url}" ${v.poster ? `poster="${v.poster}"` : ""}></video>
+        <div class="meta">
+          <div class="title">${v.name} ${v.uploaded ? `<span class="tag">reference</span>` : `<span class="tag">render</span>`}</div>
+          <div class="row">
+            <span>📁 <b>${v.path}</b></span>
+            <span>💾 <b>${fmtBytes(v.bytes)}</b></span>
+            <span>⏱ <b class="dur">…</b></span>
+            <span>🗓 <b>${new Date(v.mtime).toLocaleString()}</b></span>
+          </div>
+          <div class="links"><a href="${v.url}" download>⬇ Download</a></div>
+        </div>`;
+      const vid = card.querySelector("video");
+      vid.addEventListener("loadedmetadata", () =>
+        card.querySelector(".dur").textContent = fmtDur(vid.duration), { once: true });
+      list.appendChild(card);
+    }
+  } catch (e) {
+    list.innerHTML = `<div class="empty">Failed to load video list: ${e}</div>`;
+  }
+}
+
+/* ────────── high-speed chunked uploader ────────── */
+const CHUNK = 8 << 20;   // 8 MB slices
+const POOL  = 6;         // 6 parallel streams
+
+function putChunk(id, n, blob, onprog, attempt = 0) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", `/api/upload/chunk?id=${id}&n=${n}`);
+    xhr.setRequestHeader("Content-Type", "application/octet-stream");
+    xhr.upload.onprogress = e => onprog(e.loaded);
+    xhr.onload = () => {
+      if (xhr.status === 200) return resolve();
+      if (attempt < 2) return resolve(putChunk(id, n, blob, onprog, attempt + 1));
+      reject(new Error(`chunk ${n} failed: HTTP ${xhr.status}`));
+    };
+    xhr.onerror = () => attempt < 2 ? resolve(putChunk(id, n, blob, onprog, attempt + 1))
+                                    : reject(new Error(`chunk ${n} network error`));
+    xhr.send(blob);
+  });
+}
+
+async function uploadFile(file) {
+  const jobs = document.getElementById("jobs");
+  const el = document.createElement("div");
+  el.className = "job";
+  el.innerHTML = `
+    <div class="top"><span class="nm">${file.name}</span><span class="st">starting…</span></div>
+    <div class="bar"><i></i></div>
+    <div class="nums"><span class="pct">0%</span><span class="spd"></span><span class="eta"></span></div>`;
+  jobs.prepend(el);
+  const bar = el.querySelector(".bar i"), st = el.querySelector(".st"),
+        pct = el.querySelector(".pct"), spd = el.querySelector(".spd"),
+        eta = el.querySelector(".eta");
+
+  const id = crypto.randomUUID();
+  const total = file.size;
+  const chunks = Math.max(1, Math.ceil(total / CHUNK));
+  const loaded = new Array(chunks).fill(0);
+  const t0 = performance.now();
+  let doneBytes = 0;
+
+  const paint = () => {
+    doneBytes = loaded.reduce((a, b) => a + b, 0);
+    const secs = (performance.now() - t0) / 1000;
+    const rate = secs > 0.3 ? doneBytes / secs : 0;
+    bar.style.width = (100 * doneBytes / total).toFixed(1) + "%";
+    pct.textContent = (100 * doneBytes / total).toFixed(1) + "% of " + fmtBytes(total);
+    spd.textContent = rate ? "⚡ " + fmtSpeed(rate) : "";
+    eta.textContent = rate ? "ETA " + Math.ceil((total - doneBytes) / rate) + "s" : "";
+    st.textContent = "uploading…";
+  };
+
+  try {
+    let idx = 0;
+    const worker = async () => {
+      while (idx < chunks) {
+        const n = idx++;
+        const blob = file.slice(n * CHUNK, Math.min(total, (n + 1) * CHUNK));
+        await putChunk(id, n, blob, l => { loaded[n] = l; paint(); });
+        loaded[n] = blob.size; paint();
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(POOL, chunks) }, worker));
+
+    st.textContent = "assembling on sandbox…";
+    const r = await fetch("/api/upload/complete", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, name: file.name, chunks, size: total }),
+    });
+    const res = await r.json();
+    if (!r.ok || !res.ok) throw new Error(res.error || `HTTP ${r.status}`);
+
+    const secs = (performance.now() - t0) / 1000;
+    el.classList.add("done");
+    st.textContent = "✓ in sandbox";
+    pct.textContent = `${fmtBytes(total)} in ${secs.toFixed(1)}s → ${res.video.path}`;
+    spd.textContent = "avg " + fmtSpeed(total / secs);
+    eta.textContent = "ready for style analysis";
+    load();
+  } catch (err) {
+    el.classList.add("err");
+    st.textContent = "✗ failed — " + err.message;
+  }
+}
+
+const drop = document.getElementById("drop"), file = document.getElementById("file");
+drop.onclick = () => file.click();
+file.onchange = () => [...file.files].forEach(uploadFile);
+["dragover", "dragenter"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => [...e.dataTransfer.files].forEach(uploadFile));
+
+load();
+</script>
+</body>
+</html>

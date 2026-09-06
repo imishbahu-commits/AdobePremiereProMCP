@@ -1,0 +1,4 @@
+interface:
+  display_name: "Video Style Recreation"
+  short_description: "Measure a reference video's editing grammar and recreate exact-style episodes"
+  default_prompt: "Use $video-style-recreation to analyze this reference video's editing style and recreate a matching episode."
