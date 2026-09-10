@@ -65,6 +65,17 @@ Project shape: `src/index.ts` (registerRoot) + `src/Root.tsx` (`<Composition id 
 ## Example composition
 
 `example/` beside this SKILL.md holds `PremiumSting` — a 300-frame reference comp
+
+**UNLOCK CONFIRMED (2026-09-10):** the recipe above ran end-to-end — NSPR+NSS built
+from Mozilla mirrors via gyp+ninja, `@sparticuz/chromium` booted **Chromium
+152.0.7977.0**, and a 60-frame smoke render encoded clean 1080p30 h264 (visible in
+the gallery as `remotion_premium_sting_smoke.mp4`). Wrapper lives at
+`outputs/remotion-studio/.chrome/run-chromium.sh` (rebuild after wipes per §recipe;
+the three `.so` files + chromium are re-extractable from npm cache + this build).
+
+## Example composition
+
+`example/` beside this SKILL.md holds `PremiumSting` — a 300-frame reference comp
 implementing the motion-graphix grammar: expo-out settling, 66ms word stagger,
 0.9s count-up with terminal pulse, and a one-wrapper camera pose ladder ending in
 a 2-frame punch. Copy into a fresh Remotion project's `src/` to smoke-test any
