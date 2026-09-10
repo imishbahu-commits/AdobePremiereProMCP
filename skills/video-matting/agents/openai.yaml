@@ -1,0 +1,4 @@
+interface:
+  display_name: "Video Matting"
+  short_description: "Green-screen-free subject cutouts via temporal matting"
+  default_prompt: "Use $video-matting to cut this subject out of the footage and composite it."

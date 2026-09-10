@@ -1,0 +1,4 @@
+interface:
+  display_name: "Smart Router"
+  short_description: "Routes any media-creation intent to the right skill and tool"
+  default_prompt: "Use $smart-router to decide which skill and tool chain this media task should take."

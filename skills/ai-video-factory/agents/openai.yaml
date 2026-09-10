@@ -1,0 +1,4 @@
+interface:
+  display_name: "AI Video Factory"
+  short_description: "Script-to-video bulk generation with keyless local fallbacks"
+  default_prompt: "Use $ai-video-factory to generate this short video through the factory pipeline."

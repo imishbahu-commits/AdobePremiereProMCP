@@ -1,0 +1,4 @@
+interface:
+  display_name: "Motion Graphix"
+  short_description: "Premium feel-system for kinetic type, stats, stings, and design-led motion"
+  default_prompt: "Use $motion-graphix to build this short motion graphic with the premium feel system."

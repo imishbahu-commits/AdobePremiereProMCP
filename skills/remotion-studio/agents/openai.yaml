@@ -1,0 +1,4 @@
+interface:
+  display_name: "Remotion Studio"
+  short_description: "React-composed programmatic video with spring/interpolate motion"
+  default_prompt: "Use $remotion-studio to build this parameterized video composition."
