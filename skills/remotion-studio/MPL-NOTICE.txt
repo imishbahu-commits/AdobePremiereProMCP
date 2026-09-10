@@ -1,0 +1,1 @@
+-- MPL-2.0 notice for bundled Mozilla NSPR/NSS builds (outputs-only, MPL-2.0: https://mozilla.org/MPL/2.0/)

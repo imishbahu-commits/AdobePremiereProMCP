@@ -34,6 +34,42 @@ Project shape: `src/index.ts` (registerRoot) + `src/Root.tsx` (`<Composition id 
 - Missing shared libs (libnss3/libatk…) kill Chrome — if apt is blocked, fall back to the motion-graphix GSAP/capture lane and document it.
 - Chromium download comes from googleapis (usually reachable here); if blocked, retry later or use GSAP lane.
 
+## Confirmed sandbox network reality (measured 2026-09-10)
+
+**Blocked hosts (curl 000 / TLS EOF / object-store denies):**
+`uploads.github.com`, `objects.githubusercontent.com`, `download.pytorch.org`,
+`cdn.playwright.dev`, `remotion.media`, `storage.googleapis.com`,
+`deb.debian.org` (+ no sudo/apt), `archive.mozilla.org`, `conda.anaconda.org`,
+`cdn.jsdelivr.net`.
+
+**Reachable:** `pypi.org` + `files.pythonhosted.org` (pip ✔), `registry.npmjs.org` (npm ✔),
+`github.com` git clone + `api.github.com` (`gh` release/tag creation ✔; asset uploads ✕).
+
+**Browser recipe that works under these constraints** (no googleapis/playwright/apt):
+1. `npm i @sparticuz/chromium` (bundled chromium via npm registry ✔);
+   `await chromium.executablePath()` extracts a single binary (e.g. `/tmp/chromium`).
+2. It needs only 3 missing system libs: `libnspr4`, `libnss3`, `libnssutil3`.
+   No package mirror is reachable → **build them from source** (github.com ✔):
+   - `git clone --depth 1 madler/zlib && configure --prefix=/tmp/nsslibs && make install`
+   - `git clone --depth 1 mozilla/nspr && ./configure --prefix=/tmp/nsslibs && make install`
+   - `pip install --target /tmp/pybuild ninja gyp-next`, then
+     `PATH=/tmp/pybuild/bin:$PATH PYTHONPATH=/tmp/pybuild ./build.sh -o --gcc --disable-tests -j 2 --with-nspr=/tmp/nsslibs/include/nspr:/tmp/nsslibs/lib`
+     (in `mozilla/nss`; the legacy coreconf make path is broken on GNU make 4.3 —
+     `rules.mk multiple target patterns`; use build.sh/gyp+ninja only).
+3. Run chromium via a wrapper that exports
+   `LD_LIBRARY_PATH=/tmp/dist/<platform-dir>/lib` and execs the real binary;
+   point Remotion at the wrapper (`Config.setBrowserExecutable(wrapper)`).
+   NSPR/NSS are MPL-2.0; the built `.so`s may be kept under `outputs/` (gitignored)
+   with the MPL notice in this skill folder.
+
+## Example composition
+
+`example/` beside this SKILL.md holds `PremiumSting` — a 300-frame reference comp
+implementing the motion-graphix grammar: expo-out settling, 66ms word stagger,
+0.9s count-up with terminal pulse, and a one-wrapper camera pose ladder ending in
+a 2-frame punch. Copy into a fresh Remotion project's `src/` to smoke-test any
+new sandbox.
+
 ## Authoring guardrails
 
 - Duration in FRAMES, not seconds (fps=30: a 60s piece = 1800 frames).

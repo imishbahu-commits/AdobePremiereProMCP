@@ -24,6 +24,16 @@ curl -L -o rvm_mobilenetv3.pth \
   https://github.com/PeterL1n/RobustVideoMatting/releases/download/v1.0.0/rvm_mobilenetv3.pth
 ```
 
+### Confirmed blockers in the current sandbox (2026-09-10)
+
+- `download.pytorch.org` → TLS EOF; **CPU-only torch is uninstallable**.
+  PyPI's `torch` 2.14 wheel is CUDA-entangled — import fails without `libcudart`
+  (tested, dead end; do not retry `--no-deps` tricks).
+- `objects.githubusercontent.com` → release-asset downloads fail (weights URL 302s there).
+- Net effect: RVM is **installed-but-inert** here until the network profile changes;
+  the venv + this doc keep the exact recipe ready. Chroma-key lane
+  (`video-style-recreation`) remains the working matting path meanwhile.
+
 ## Recipe — footage → alpha plate → filtergraph
 
 1. Matte: load the `.pth` (torch.jit or torchhub `torch.hub.load("PeterL1n/RobustVideoMatting","rvm_mobilenetv3")`), iterate frames, keep recurrent state; write foreground RGBA PNG sequence (or green-screen mp4 with `--output-type green_background` for compatibility with our `colorkey` chains).
